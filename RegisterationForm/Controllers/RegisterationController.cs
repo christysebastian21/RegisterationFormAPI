@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using BCrypt.Net;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using RegisterationForm.Models;
 
@@ -14,19 +15,20 @@ namespace RegisterationForm.Controllers
             _dbContext = registerFormDBContext;
         }
 
-        [HttpPost("CreateUser")]
-        public string createUser([FromBody] Registerations userDetails)
+        [HttpPost("Register")]
+        public ActionResult<Registerations> Register([FromBody] Registerations userDetails)
         {
             try
             {
+                userDetails.Password = BCrypt.Net.BCrypt.HashPassword(userDetails.Password);
                 _dbContext.RegisterationForms.Add(userDetails);
                 _dbContext.SaveChanges();
 
-                return "User Created SuccessFully";
+                return userDetails;
             }
             catch (Exception ex)
             {
-                return $"User creation failed: {ex.Message}";
+                return BadRequest(ex.Message);
             }
         }
 
@@ -38,6 +40,40 @@ namespace RegisterationForm.Controllers
                 var registerationDetails = _dbContext.RegisterationForms.Find(registerationID);
 
                 return Ok(registerationDetails);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("login")]
+        public ActionResult<string> Login(Registerations loginDetails)
+        {
+            try
+            {
+                var message = string.Empty;
+                var user = _dbContext.RegisterationForms.SingleOrDefault(x => x.Username == loginDetails.Username);
+
+                if (user != null)
+                {
+                    bool isValidPassword = BCrypt.Net.BCrypt.Verify(loginDetails.Password, user.Password);
+
+                    if (isValidPassword)
+                    {
+                        message = "Login success";
+                    }
+                    else
+                    {
+                        message = "Login failed";
+                    }
+                }
+                else
+                {
+                    message = "Login failed";
+                }
+
+                return message;
             }
             catch (Exception ex)
             {
